@@ -4,10 +4,10 @@
 APP=$1
 # Make sure we are in the same DIR as the script. (should be the project root)
 scriptdir=$(dirname "$(readlink -f "$0")")
-cd $scriptdir
+cd "$scriptdir" || exit 1
 
 # Are we in a Git worktree?
-if git rev-parse --is-inside-work-tree 2>&1 > /dev/null
+if git rev-parse --is-inside-work-tree > /dev/null 2>&1 
 then
     echo "Yes we got an Git worktree"
     # Do we have App::Cpm as a submodule?
@@ -20,6 +20,13 @@ then
 
     else
         echo "cannot find cpm, adding as a submodule"
+        git submodule add https://github.com/skaji/cpm.git
+    fi
+    # check for a cpanfile
+    if [[ ! -e cpanfile ]]
+    then
+        echo "No cpanfile found. exiting"
+        exit 1
     fi
     # run cpm to download all dependencies
     echo "Download deps"
@@ -32,7 +39,7 @@ then
 
     # Check perl app for compile errors, if any exit.
     echo "Check for compile errors"
-    perl -c $APP || exit 1
+    perl -c "$APP" || exit 1
 
     # Cleanup
     echo "Cleanup"
@@ -40,11 +47,11 @@ then
 
     # Begin Fatpacking
     echo "Fatpack trace"
-    fatpack trace $APP
+    fatpack trace "$APP"
     echo "Fatpack packlists-for"
-    fatpack packlists-for $(cat fatpacker.trace) > packlists
+    fatpack packlists-for "$(cat fatpacker.trace)" > packlists
     echo "Fatpack tree"
-    fatpack tree $(cat packlists)
+    fatpack tree "$(cat packlists)"
     # Remove all files not a perl module
     echo "Remove all non .pm files in fatlib/"
     find fatlib -type f ! -name '*.pm' -delete
@@ -53,7 +60,7 @@ then
     find fatlib -type f -exec perlstrip -v {} \;
     # Final fatpack to single file
     echo "Fatpack the file"
-    fatpack file $APP > ${APP%.*}.packed.pl
+    fatpack file "$APP" > "${APP%.*}".packed.pl
 else
     echo "not in a git worktree"
     echo "TODO: download cpm file from github."
